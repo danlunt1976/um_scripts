@@ -1,0 +1,47 @@
+#!/bin/ksh
+
+# This script makes temp2m.monthly oceantemppg12.monthly and 
+#   oceantemppg16.monthly timeseries files
+
+# Usage: make_times_scr_new expnames
+# e.g. make_times_scr_new tcofa tcofb
+
+# output sent to /home/bridge/ggdjl/um_climates
+# /home/bridge/ggdjl/um_climates/expname must exist for it to work i think.
+outdir_root=/home/bridge/ggdjl/um_climates
+
+# data files input from /home/bridge/swsvalde/umdata/
+
+test=1
+
+for exp in $* ; do
+
+cd /home/bridge/ggdjl/umdata/${exp}
+#cd /export/permian/array-01/ggdjl/${exp}
+
+outdir=${outdir_root}/${exp}
+mkdir ${outdir}
+
+if [ ${test} -eq 0 ] ; then
+
+# First do the temp2m.monthly.  This is from pd files and there 
+#   may be very many so it does it by century and then glues together
+for year in 0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v w x y z; do
+  ncrcat -O -v temp_mm_1_5m pcpd/${exp}a.pd${year}?????.nc ${outdir}/${exp}.temp2m.monthly.${year}.nc
+done
+ncrcat -O ${outdir}/${exp}.temp2m.monthly.?.nc ${outdir}/${exp}.temp2m.monthly.nc
+\rm ${outdir}/${exp}.temp2m.monthly.?.nc
+
+fi
+
+# now oceantemp - this is easier because it uses yearly files so 
+#   less chance of going over the file limit.
+# 15/7/2019: modified top level to zero for 5 metres.
+ncrcat -O -v temp_ym_dpth -d depth_1,0,0 pg/${exp}o.pg?????.nc ${outdir}/${exp}.oceantemppg1.monthly.nc
+
+ncrcat -O -v temp_ym_dpth -d depth_1,11,11 pg/${exp}o.pg?????.nc ${outdir}/${exp}.oceantemppg12.monthly.nc
+
+ncrcat -O -v temp_ym_dpth -d depth_1,15,15 pg/${exp}o.pg?????.nc ${outdir}/${exp}.oceantemppg16.monthly.nc
+
+
+done

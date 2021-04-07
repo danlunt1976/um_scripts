@@ -1,0 +1,131 @@
+#! /bin/bash
+#
+#  This script takes a list of files, 
+#    and makes the climate mean files for those years.
+
+#  $* is the experiment name
+#  -y YEARS = year codes
+#  e.g. make_climate -y 'p8[8-9] p9?' xbooa
+
+# It puts the output into expdir=/home/ggdjl/um_climates.
+# It gets the input from /home/swsvalde/umdata
+
+#***************************************************
+# This bit is just getting the arguments to ths script
+
+# Usage information
+usage () {
+    [ "$1" ] && ( echo "" ; echo $* )
+    echo "usage: $0 -y {start year} {expnames}"
+    exit 1
+}
+
+# Parse command line arguments using bash built-in 'getopts'
+while getopts "y:" options; do
+  case $options in
+    "y" ) YEARS=$OPTARG ;;
+     *  ) usage ;;
+  esac
+done
+
+# Get the other options
+shift `expr $OPTIND - 1`
+EXP=$*
+
+# Run some checks
+if [ "$YEARS" = "" ]
+then
+    usage "OPTIONS MISSING"
+fi
+
+#***************************************************
+
+# Edit this line if you want the output to go somewhere else
+expdir=/home/ggdjl/um_climates
+
+mkdir -p ${expdir}/${EXP}
+
+# OK, make pc and pd and pf files
+
+for type in pc pd pf ; do
+echo 'making '${type}
+
+# the directory name depends on the typs of file...
+if [ "$type" = "pc" ]
+then
+typedir=pcpd
+typecode=a
+fi
+if [ "$type" = "pd" ]
+then
+typedir=pcpd
+typecode=a
+fi
+if [ "$type" = "pf" ]
+then
+typedir=pf
+typecode=o
+fi
+
+# OK, start the loop over months
+for month in jan feb mar apr may jun jul aug sep oct nov dec ; do
+echo ${month}
+monthfiles=''
+for yearcode in $YEARS ; do
+# get a list of the files for each month...
+monthfiles=$monthfiles' '`ls /home/swsvalde/umdata/${EXP}/${typedir}/${EXP}${typecode}.${type}${yearcode}${month}.nc`
+done
+# do the averaging using ncea...
+ncea -O $monthfiles ${expdir}/${EXP}/${EXP}${typecode}.${type}cl${month}.nc
+done
+
+# make the climatological files using ncea...
+ncea -O ${expdir}/${EXP}/${EXP}${typecode}.${type}cldec.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}cljan.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clfeb.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}cldjf.nc
+
+ncea -O ${expdir}/${EXP}/${EXP}${typecode}.${type}clmar.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clapr.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clmay.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clmam.nc
+
+ncea -O ${expdir}/${EXP}/${EXP}${typecode}.${type}cljun.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}cljul.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}claug.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}cljja.nc
+
+ncea -O ${expdir}/${EXP}/${EXP}${typecode}.${type}clsep.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}cloct.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clnov.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clson.nc
+
+ncea -O ${expdir}/${EXP}/${EXP}${typecode}.${type}cldjf.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clmam.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}cljja.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clson.nc \
+        ${expdir}/${EXP}/${EXP}${typecode}.${type}clann.nc
+
+done
+
+# now do pg files in a similar way, but only annual means...
+for type in pg ; do
+echo 'making '${type}
+
+if [ "$type" = "pg" ]
+then
+typedir=pg
+typecode=o
+fi
+
+# make the annual means
+monthfiles=''
+for yearcode in $YEARS ; do
+monthfiles=$monthfiles' '`ls /home/swsvalde/umdata/${EXP}/${typedir}/${EXP}${typecode}.${type}${yearcode}c1.nc`
+done
+ncea -O $monthfiles ${expdir}/${EXP}/${EXP}${typecode}.${type}clann.nc
+
+done
+
+# ***************************************************
+
