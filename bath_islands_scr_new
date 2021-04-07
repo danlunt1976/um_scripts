@@ -1,0 +1,293 @@
+#!/bin/ksh
+#
+#  This script takes a UM format ocean restart file, and outputs netcdf
+#    files of ocean bathymetry and the islands.
+#
+#  OPTIONS:
+#  $1 is the input UM-format ocean restart file
+#  $2 is the output bathymetry netcdf file
+#  $3 is the output islands netcdf file
+#  $4 is the ascii islands file (for input to xancil)
+#  $5 is the ascii nisles file (for input to umui)
+#
+echo Script name: $0
+echo $# arguments 
+if [ "$#" -ne 5 ]; then
+    echo "Illegal number of options: must be 5"
+    exit
+fi
+
+THISDIR=`pwd`
+   MYLIB_HOME="/home/bridge/swsvalde/qplot_CentOS6"
+   JEFF_LIB="/home/bridge/fb7897/41_Tools/jeff/lib"
+#
+\cp $1 infile
+
+cat << EOF > mkancil.f
+C
+C
+      PROGRAM MKANCIL
+C
+      IMPLICIT NONE
+C
+      INTEGER  ICHAN
+      LOGICAL LUM
+      CHARACTER NUMTYPE*3
+c
+      ICHAN=11
+C
+      CALL PPTYPE('infile',LUM,NUMTYPE)
+      CALL OPENFF(ICHAN,'infile','r',NUMTYPE)
+      CALL NEWANCILO(ICHAN)
+      CALL CLOSEFF(ICHAN)
+C
+      STOP
+      END
+C
+c
+c
+      SUBROUTINE NEWANCILO(ICHAN)
+C
+      IMPLICIT NONE
+C
+      INTEGER ICHAN
+C
+      INTEGER N1,N4,N5
+      PARAMETER (N1=256)
+c
+      INTEGER HEADER(N1)
+      INTEGER CURPOSI,NEWPOSI,J,IEOF
+      INTEGER I
+      character*8 i_char1
+C
+      INTEGER IPOS
+C
+      REAL,allocatable :: RCOUNT(:)
+      REAL,allocatable :: RLKUP4(:)
+C
+      integer(kind=4) nx_netcdf
+      integer(kind=4) ny_netcdf
+      real,allocatable :: lons(:)
+      real,allocatable :: lats(:)
+      real,allocatable :: bath_old(:,:)
+      real,allocatable :: islands_old(:,:)
+      real dx,dy,y0
+ 
+      integer(kind=4) status
+      integer(kind=4) ncid
+      integer(kind=4) nlonid,nlongitid,nlatid,nlatitid,nbathid
+      integer(kind=4) ,dimension(2) :: dimpass
+
+      include '/opt/local/include-old/netcdf.inc'
+
+      integer s
+      integer xs,xf,ys,yf
+      integer nseg
+
+      integer nisle,nsegtot,nsegmax,nexcnst
+
+      CURPOSI=1
+      IEOF=0
+C
+C     Read fixed length header
+C
+      CALL RDBLKI(HEADER,N1,N1,ICHAN,CURPOSI,IEOF)
+ 
+      n4=header(131)
+      print*,'n4=',n4
+      allocate(rlkup4(n4+5))
+      n5=header(126)
+      allocate(rcount(n5))
+
+      if (n5.eq.7154) then
+        nx_netcdf=96
+        ny_netcdf=73
+        dx=3.75
+        dy=2.5
+        y0=-90
+        allocate(lons(nx_netcdf))
+        allocate(lats(ny_netcdf))
+        allocate(islands_old(nx_netcdf,ny_netcdf))
+        allocate(bath_old(nx_netcdf,ny_netcdf))
+      else if (n5.eq.41760) then
+        nx_netcdf=288
+        ny_netcdf=144
+        dx=1.25
+        dy=1.25
+        y0=-89.375
+        allocate(lons(nx_netcdf))
+        allocate(lats(ny_netcdf))
+        allocate(islands_old(nx_netcdf,ny_netcdf))
+        allocate(bath_old(nx_netcdf,ny_netcdf))
+      else
+        print*,'ERROR: RESOLUTION NOT CODED:',n5
+        stop
+      endif
+
+      newposi=header(125)
+      call skip(ichan,curposi,newposi)
+      CALL RDBLKR(RCOUNT,N5,N5,ICHAN,CURPOSI,IEOF)
+c
+      do j=1,ny_netcdf
+      lats(j)=y0+(j-1)*dy
+      enddo
+      do i=1,nx_netcdf
+      lons(i)=i*dx
+      enddo
+      ipos=0
+      do j=1,ny_netcdf
+        do i=1,nx_netcdf+2
+          ipos=ipos+1
+          if (i.gt.1.and.i.lt.(nx_netcdf+2)) then
+            bath_old(i-1,j)=rcount(ipos)
+          endif
+        enddo
+      enddo
+      status=nf_create('bath_tmp.nc', nf_clobber, ncid)
+      status=nf_def_dim(ncid, 'longitude',nx_netcdf,nlonid)
+      status=nf_def_dim(ncid, 'latitude',ny_netcdf,nlatid)
+      status=nf_def_var(ncid,'longitude',nf_real,1,nlonid,nlongitid)
+      status=nf_def_var(ncid,'latitude',nf_real,1,nlatid,nlatitid)
+      dimpass(1)=nlonid
+      dimpass(2)=nlatid
+      status=nf_put_att_text(ncid,nlonid,'units',12,'degrees_east')
+      status=nf_put_att_text(ncid,nlatid,'units',13,'degrees_north')
+      status=nf_def_var(ncid,'bath',nf_real,2,dimpass,
+     :                     nbathid)
+      status=nf_enddef(ncid)
+      status=nf_put_var_double(ncid,nlongitid,lons)
+      status=nf_put_var_double(ncid,nlatitid,lats)
+      status=nf_put_var_double(ncid,nbathid,bath_old)
+      status=nf_close(ncid)
+
+C     Read extra dependent constants
+C
+      newposi=header(130)
+      if (header(131).ne.n4) then
+         print*,' error header 131 ',header(131),n4
+         stop 1
+      end if
+      call skip(ichan,curposi,newposi)
+      CALL RDBLKR(RLKUP4,N4,N4,ICHAN,CURPOSI,IEOF)
+
+      print*,'OK to here....'
+      print*,rlkup4(1)
+      nisle=rlkup4(1)
+
+
+      open(UNIT=10,FILE='island.dat')
+      WRITE(10,'(A)') '# Island file'
+      WRITE(10,'(A)') ''
+      write(i_char1,'(i8)') int(rlkup4(1))
+      WRITE(10,'(A8)') adjustl(i_char1)
+
+      nsegtot=0
+      nsegmax=0
+      islands_old(:,:)=0.0
+      ipos=1
+      do i=1,rlkup4(ipos)
+        ipos=ipos+1
+        nseg=rlkup4(ipos)
+        print*,'nseg=',nseg
+
+        nsegtot=nsegtot+nseg
+        if (nseg.gt.nsegmax) then
+          nsegmax=nseg
+        endif
+
+        WRITE(10,'(A)') ''
+        WRITE(10,'(A)') '# Landmass X'
+        write(i_char1,'(i8)') int(rlkup4(ipos))
+        WRITE(10,'(A8)') adjustl(i_char1)
+
+        do s=1,nseg
+          print*,s
+      write(i_char1,'(i8)') int(rlkup4(ipos+4*(s-1)+1))
+      WRITE(10,'(A8)') adjustl(i_char1)
+      write(i_char1,'(i8)') int(rlkup4(ipos+4*(s-1)+2))
+      WRITE(10,'(A8)') adjustl(i_char1)
+      write(i_char1,'(i8)') int(rlkup4(ipos+4*(s-1)+3))
+      WRITE(10,'(A8)') adjustl(i_char1)
+      write(i_char1,'(i8)') int(rlkup4(ipos+4*(s-1)+4))
+      WRITE(10,'(A8)') adjustl(i_char1)
+c          if (ipos+3*(nseg)+s .le. n4+5) then
+          xs=rlkup4(ipos+s)-1
+          xf=rlkup4(ipos+(nseg)+s)-1
+          ys=rlkup4(ipos+2*(nseg)+s)
+          yf=rlkup4(ipos+3*(nseg)+s)
+          print*,xs,xf,ys,yf
+          islands_old(xs:xf,ys:yf) = i
+c          endif
+        enddo
+        ipos=ipos+4*nseg
+      enddo
+
+      close(10) 
+
+
+      print*,'OK to here too....'
+
+
+      nexcnst=nsegtot*4+nisle+1
+      open(UNIT=10,FILE='umui.dat')
+      write(i_char1,'(i8)') nisle
+      WRITE(10,'(A8)') trim(adjustl(i_char1))     
+      write(i_char1,'(i8)') nsegmax
+      WRITE(10,'(A8)') trim(adjustl(i_char1))     
+      write(i_char1,'(i8)') nsegtot
+      WRITE(10,'(A8)') trim(adjustl(i_char1))     
+      write(i_char1,'(i8)') nexcnst
+      WRITE(10,'(A8)') trim(adjustl(i_char1))    
+
+      close(10)
+
+      do j=1,ny_netcdf
+      do i=1,nx_netcdf
+      if (bath_old(i,j).eq.0) then
+        islands_old(i,j)=-1
+      endif
+      enddo
+      enddo
+      status=nf_create('island_tmp.nc', nf_clobber, ncid)
+      status=nf_def_dim(ncid, 'longitude',nx_netcdf,nlonid)
+      status=nf_def_dim(ncid, 'latitude',ny_netcdf,nlatid)
+      status=nf_def_var(ncid,'longitude',nf_real,1,nlonid,nlongitid)
+      status=nf_def_var(ncid,'latitude',nf_real,1,nlatid,nlatitid)
+      dimpass(1)=nlonid
+      dimpass(2)=nlatid
+      status=nf_put_att_text(ncid,nlonid,'units',12,'degrees_east')
+      status=nf_put_att_text(ncid,nlatid,'units',13,'degrees_north')
+      status=nf_def_var(ncid,'islands',nf_real,2,dimpass,
+     :                     nbathid)
+      status=nf_enddef(ncid)
+      status=nf_put_var_double(ncid,nlongitid,lons)
+      status=nf_put_var_double(ncid,nlatitid,lats)
+      status=nf_put_var_double(ncid,nbathid,islands_old)
+      status=nf_close(ncid)
+C
+      RETURN
+      END
+
+EOF
+#
+\rm -rf mkancil
+ifort -warn all -r8 -i8 -CB -traceback mkancil.f \
+       $JEFF_LIB/libumutil.a $JEFF_LIB/libutil.a \
+       $MYLIB_HOME/lib/libwritenc.a \
+       $MYLIB_HOME/lib/libutils.a \
+       /opt/bridge/CentOS-64/netcdf/4.0/intel_fc_10.1/lib/libnetcdf.a \
+  -o mkancil
+#
+if [ -f mkancil ]
+then
+   mkancil
+   \rm -rf mkancil infile mkancil.f
+fi
+
+\mv bath_tmp.nc $2
+\mv island_tmp.nc $3
+\mv island.dat $4
+\mv umui.dat $5
+
+
+exit
