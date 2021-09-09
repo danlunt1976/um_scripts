@@ -216,7 +216,7 @@ c          if (ipos+3*(nseg)+s .le. n4+5) then
           ys=rlkup4(ipos+2*(nseg)+s)
           yf=rlkup4(ipos+3*(nseg)+s)
           print*,xs,xf,ys,yf
-          islands_old(xs:xf,ys:yf) = i
+          islands_old(xs:xf,ys:yf)=islands_old(xs:xf,ys:yf)+i
 c          endif
         enddo
         ipos=ipos+4*nseg
