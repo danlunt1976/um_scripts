@@ -41,24 +41,25 @@ fi
 #***************************************************
 
 # Edit this line if you want the output to go somewhere else
-expdir=/home/ggdjl/um_climates
+expdir=/home/bridge/ggdjl/um_climates
 
 mkdir -p ${expdir}/${EXP}
 
 # OK, make pc and pd and pf files
 
-for type in pc pd pf ; do
+#for type in pc pd pf ; do
+for type in pd pf ; do
 echo 'making '${type}
 
 # the directory name depends on the typs of file...
 if [ "$type" = "pc" ]
 then
-typedir=pcpd
+typedir=pc
 typecode=a
 fi
 if [ "$type" = "pd" ]
 then
-typedir=pcpd
+typedir=pd
 typecode=a
 fi
 if [ "$type" = "pf" ]
@@ -73,7 +74,7 @@ echo ${month}
 monthfiles=''
 for yearcode in $YEARS ; do
 # get a list of the files for each month...
-monthfiles=$monthfiles' '`ls /home/swsvalde/umdata/${EXP}/${typedir}/${EXP}${typecode}.${type}${yearcode}${month}.nc`
+monthfiles=$monthfiles' '`ls /home/bridge/swsvalde/umdata/${EXP}/${typedir}/${EXP}${typecode}?${type}${yearcode}${month}*.nc`
 done
 # do the averaging using ncea...
 ncea -O $monthfiles ${expdir}/${EXP}/${EXP}${typecode}.${type}cl${month}.nc
@@ -121,7 +122,7 @@ fi
 # make the annual means
 monthfiles=''
 for yearcode in $YEARS ; do
-monthfiles=$monthfiles' '`ls /home/swsvalde/umdata/${EXP}/${typedir}/${EXP}${typecode}.${type}${yearcode}c1.nc`
+monthfiles=$monthfiles' '`ls /home/bridge/swsvalde/umdata/${EXP}/${typedir}/${EXP}${typecode}?${type}${yearcode}c1*.nc`
 done
 ncea -O $monthfiles ${expdir}/${EXP}/${EXP}${typecode}.${type}clann.nc
 

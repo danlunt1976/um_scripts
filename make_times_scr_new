@@ -20,7 +20,7 @@ cd /home/bridge/ggdjl/umdata/${exp}
 #cd /export/permian/array-01/ggdjl/${exp}
 
 outdir=${outdir_root}/${exp}
-mkdir ${outdir}
+mkdir -p ${outdir}
 
 if [ ${test} -eq 0 ] ; then
 
