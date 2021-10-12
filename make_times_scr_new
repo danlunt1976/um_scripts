@@ -38,11 +38,18 @@ fi
 #   less chance of going over the file limit.
 # 15/07/2019: modified top level to zero for 5 metres.
 # 09/09/2021: modified naming convention for long names.
-ncrcat -O -v temp_ym_dpth -d depth_1,0,0 pg/${exp}o?pg*.nc ${outdir}/${exp}.oceantemppg1.monthly.nc
+# 12/10/2022: changed to cdo as ncrcat not working for restarts.
 
-ncrcat -O -v temp_ym_dpth -d depth_1,11,11 pg/${exp}o?pg*.nc ${outdir}/${exp}.oceantemppg12.monthly.nc
+#ncrcat -O -v temp_ym_dpth -d depth_1,0,0 pg/${exp}o?pg*.nc ${outdir}/${exp}.oceantemppg1.monthly.nc
+#ncrcat -O -v temp_ym_dpth -d depth_1,11,11 pg/${exp}o?pg*.nc ${outdir}/${exp}.oceantemppg12.monthly.nc
+#ncrcat -O -v temp_ym_dpth -d depth_1,15,15 pg/${exp}o?pg*.nc ${outdir}/${exp}.oceantemppg16.monthly.nc
 
-ncrcat -O -v temp_ym_dpth -d depth_1,15,15 pg/${exp}o?pg*.nc ${outdir}/${exp}.oceantemppg16.monthly.nc
-
+cdo -O cat pg/${exp}o?pg*.nc ${outdir}/my_tmp1_make_times_scr_new.nc
+cdo -O -select,name=temp_ym_dpth ${outdir}/my_tmp1_make_times_scr_new.nc ${outdir}/my_tmp2_make_times_scr_new.nc
+\rm ${outdir}/my_tmp1_make_times_scr_new.nc 
+cdo -O -select,levidx=1 ${outdir}/my_tmp2_make_times_scr_new.nc ${outdir}/${exp}.oceantemppg1.monthly.nc
+cdo -O -select,levidx=12 ${outdir}/my_tmp2_make_times_scr_new.nc ${outdir}/${exp}.oceantemppg12.monthly.nc
+cdo -O -select,levidx=16 ${outdir}/my_tmp2_make_times_scr_new.nc ${outdir}/${exp}.oceantemppg16.monthly.nc
+\rm ${outdir}/my_tmp2_make_times_scr_new.nc
 
 done
