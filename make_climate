@@ -6,9 +6,10 @@
 #  $* is the experiment name
 #  -y YEARS = year codes
 #  e.g. make_climate -y 'p8[8-9] p9?' xbooa
+#  e.g. make_climate -y '0000029[7-9]?' tfjaa
 
-# It puts the output into expdir=/home/ggdjl/um_climates.
-# It gets the input from /home/swsvalde/umdata
+# It puts the output into expdir=/home/bridge/ggdjl/um_climates.
+# It gets the input from /home/bridge/swsvalde/umdata
 
 #***************************************************
 # This bit is just getting the arguments to ths script
@@ -47,8 +48,10 @@ mkdir -p ${expdir}/${EXP}
 
 # OK, make pc and pd and pf files
 
+for type in pc pd pf pt ; do
 #for type in pc pd pf ; do
-for type in pd pf ; do
+#for type in pd pf ; do
+#for type in pt ; do
 echo 'making '${type}
 
 # the directory name depends on the typs of file...
@@ -60,6 +63,11 @@ fi
 if [ "$type" = "pd" ]
 then
 typedir=pd
+typecode=a
+fi
+if [ "$type" = "pt" ]
+then
+typedir=pt
 typecode=a
 fi
 if [ "$type" = "pf" ]
